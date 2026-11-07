@@ -1,35 +1,35 @@
-# Use official Python image
+
 FROM python:3.11-slim
 
-# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_ROOT_USER_ACTION=ignore
+ENV DJANGO_SETTINGS_MODULE=bank_site.settings
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
 COPY bank_site/requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copy the full Django project
-COPY bank_site/ /app/
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
 
-# Run Django setup commands
+COPY bank_site/ .
+
+# Verify Django installation and settings
+RUN python -c "import django; print('Django version:', django.get_version())"
+
+# Verify staticfiles registration
+RUN python -c "import os; os.environ['DJANGO_SETTINGS_MODULE']='bank_site.settings'; import django; django.setup(); from django.conf import settings; from django.core.management import get_commands; print('Installed apps:', settings.INSTALLED_APPS); print('Collectstatic registered:', 'collectstatic' in get_commands()); assert 'collectstatic' in get_commands(), 'Staticfiles command not registered'"
+
+RUN python manage.py check
+
 RUN python manage.py collectstatic --no-input
-RUN python manage.py makemigrations
-RUN python manage.py migrate
-RUN python manage.py create_admin
 
-# Expose port
 EXPOSE 8010
 
-# Start server
 CMD ["gunicorn", "bank_site.wsgi:application", "--bind", "0.0.0.0:8010"]
