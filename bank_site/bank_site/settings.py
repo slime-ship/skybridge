@@ -160,22 +160,21 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-# URL to use when referring to static files
-STATIC_URL = 'static/'
-
-# Directory where collectstatic will collect static files
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
 # Optional: additional directories to look for static files
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+DEBUG = False
 
-if not DEBUG:
-    # Production: use WhiteNoise for serving static files
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-else:
-    # Development: use default storage (or Cloudinary if desired)
-    STATICFILES_STORAGE = 'cloudinary_storage.storage.StaticHashedCloudinaryStorage'
-    pass
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Additional locations of static files
 STATICFILES_DIRS = [
