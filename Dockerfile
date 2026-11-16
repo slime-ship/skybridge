@@ -32,4 +32,4 @@ RUN python manage.py collectstatic --no-input
 
 EXPOSE 8010
 
-CMD ["gunicorn", "bank_site.wsgi:application", "--bind", "0.0.0.0:8010"]
+CMD ["sh", "-c", "gunicorn bank_site.wsgi:application --bind 0.0.0.0:${PORT:-8010} --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile - --log-level info"]
