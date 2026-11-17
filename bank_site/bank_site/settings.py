@@ -20,7 +20,6 @@ import cloudinary.api
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# TODO: Move this to an environment variable in Railway!
 SECRET_KEY = 'django-insecure-os%ceh%!b_zte(60bvi9)pujn1v#lyuh^u4l!hr+_-5)rmf&9-'
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -46,13 +45,16 @@ USE_X_FORWARDED_HOST = True
 INSTALLED_APPS = [
     'jazzmin',
     'django.contrib.admin',
-    'cloudinary',
-    'cloudinary_storage',  
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
+    
+    # MUST be before cloudinary_storage to prevent Django 5.1 AttributeError
+    'django.contrib.staticfiles', 
+    
+    'cloudinary',
+    'cloudinary_storage',
     'BankApp',
     'django_use_email_as_username.apps.DjangoUseEmailAsUsernameConfig',
     'custom_user.apps.CustomUserConfig',
@@ -61,10 +63,9 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = 'custom_user.User'
 
-# FIXED: Moved WhiteNoise directly under SecurityMiddleware so it can serve files
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # <--- Moved here
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Must be here to serve static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -95,7 +96,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'bank_site.wsgi.application'
 
 # Database
-# TODO: Move DATABASE_URL to Railway environment variables!
 DATABASES = {
     "default": dj_database_url.parse(
         os.environ.get("DATABASE_URL", "sqlite:///" + str(BASE_DIR / "db.sqlite3")), 
@@ -104,7 +104,6 @@ DATABASES = {
 }
 
 # Cloudinary Configuration
-# TODO: Move these to Railway environment variables!
 cloudinary.config(
     cloud_name="dlzn0moho",
     api_key="941661419218362",
@@ -137,18 +136,17 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# FIXED: Cleaned up redundant directories. Django automatically looks inside subfolders.
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static')
 ]
 
-# FIXED: Modern Django 4.2+ / 5.1 storage configuration.
-# Removed 'Manifest' so WhiteNoise stops crashing on missing .map files.
+# Django 5.1 Storage Configuration
 STORAGES = {
     "default": {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     },
     "staticfiles": {
+        # CompressedStaticFilesStorage (NO 'Manifest') prevents crashes on missing map/font files
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
@@ -158,7 +156,6 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Email Configuration
-# TODO: Move these to Railway environment variables!
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
