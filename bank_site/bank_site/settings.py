@@ -9,8 +9,6 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-SUPERUSER_EMAIL = 'axosbank@gmail.com'
-SUPERUSER_PASSWORD = 'Me12sleep'
 import os
 from pathlib import Path
 import dj_database_url
@@ -18,63 +16,26 @@ import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 
-
-
-## Change this:
-# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# To either:
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# OR keep as string but use os.path.join:
-
-
-
-DATABASES = {
-    "default": dj_database_url.parse(
-        os.environ["DATABASE_URL"],
-        conn_max_age=60,
-    )
-}
-
-
-print("========== DATABASE DIAGNOSTIC ==========")
-
-db = DATABASES["default"]
-
-print("DATABASE HOST:", db.get("HOST"))
-print("DATABASE NAME:", db.get("NAME"))
-print("DATABASE USER:", db.get("USER"))
-print("DATABASE PORT:", db.get("PORT"))
-
-print("==========================================")
-
-
-cloudinary.config(
-    cloud_name="dlzn0moho",
-    api_key="941661419218362",
-    api_secret="z9I6HvzFGAWVMW7aBlSDJxehX14"
-)
-
-
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
+# TODO: Move this to an environment variable in Railway!
 SECRET_KEY = 'django-insecure-os%ceh%!b_zte(60bvi9)pujn1v#lyuh^u4l!hr+_-5)rmf&9-'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     "axosbank.guru",
     "www.axosbank.guru",
 ]
 
-CSRF_TRUSTED_ORIGINS = ['https://axosbank.guru',
-                        'https://www.axosbank.guru',
-                        ]
+CSRF_TRUSTED_ORIGINS = [
+    'https://axosbank.guru',
+    'https://www.axosbank.guru',
+]
+
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
@@ -98,18 +59,18 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
 ]
 
-# In your settings.py file
 AUTH_USER_MODEL = 'custom_user.User'
 
+# FIXED: Moved WhiteNoise directly under SecurityMiddleware so it can serve files
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # <--- Moved here
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'bank_site.urls'
@@ -133,10 +94,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'bank_site.wsgi.application'
 
+# Database
+# TODO: Move DATABASE_URL to Railway environment variables!
+DATABASES = {
+    "default": dj_database_url.parse(
+        os.environ.get("DATABASE_URL", "sqlite:///" + str(BASE_DIR / "db.sqlite3")), 
+        conn_max_age=60,
+    )
+}
+
+# Cloudinary Configuration
+# TODO: Move these to Railway environment variables!
+cloudinary.config(
+    cloud_name="dlzn0moho",
+    api_key="941661419218362",
+    api_secret="z9I6HvzFGAWVMW7aBlSDJxehX14"
+)
 
 # Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -152,65 +127,38 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-
-# Static files
+# FIXED: Cleaned up redundant directories. Django automatically looks inside subfolders.
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static')
 ]
 
-DEBUG = False
-
-STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# Cloudinary for uploaded media and WhiteNoise for static files
+# FIXED: Modern Django 4.2+ / 5.1 storage configuration.
+# Removed 'Manifest' so WhiteNoise stops crashing on missing .map files.
 STORAGES = {
     "default": {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 
-# Backward compatibility for cloudinary_storage collectstatic
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
-
-# Additional locations of static files
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),  # Main static directory
-    os.path.join(BASE_DIR, 'static', 'js'),  # Directory for JavaScript files
-    os.path.join(BASE_DIR, 'static', 'img'),  # Directory for SASS files
-    os.path.join(BASE_DIR, 'static', 'css'),  # Directory for compiled CSS files
-    os.path.join(BASE_DIR, 'static', 'lib'),
-    os.path.join(BASE_DIR, 'static', 'lib', 'animate'),
-    os.path.join(BASE_DIR, 'static', 'lib', 'counterup'),
-    os.path.join(BASE_DIR, 'static', 'lib', 'easing'),
-    os.path.join(BASE_DIR, 'static', 'lib', 'owlcarousel'),
-    os.path.join(BASE_DIR, 'static', 'lib', 'owlcarousel', 'assets'),
-    os.path.join(BASE_DIR, 'static', 'lib', 'waypoints'),
-    os.path.join(BASE_DIR, 'static', 'lib', 'wow'),
-    # Add more directories if needed
-]
-
-
+# Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Email Configuration
+# TODO: Move these to Railway environment variables!
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
@@ -219,8 +167,5 @@ EMAIL_HOST_USER = 'overtimetested@gmail.com'
 EMAIL_HOST_PASSWORD = 'gdgq jxmp lwog anke'
 DEFAULT_FROM_EMAIL = 'Axos Bank <overtimetested@gmail.com>'
 
-
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
