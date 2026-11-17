@@ -980,7 +980,7 @@ def dashboard(request):
     if not user_profile.is_linked:
         show_alert = request.session.get('show_alert', True)
         if show_alert:
-            last_refresh_str = request.session.get('last_refresh', None)
+            last_refresh = timezone.datetime.fromisoformat(last_refresh_str) if last_refresh_str else None
             last_refresh = datetime.fromisoformat(last_refresh_str) if last_refresh_str else None
             if last_refresh is None or (timezone.now() - last_refresh) > timedelta(minutes=5):
                 request.session['last_refresh'] = timezone.now().isoformat()
