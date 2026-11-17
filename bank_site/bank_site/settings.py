@@ -28,16 +28,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # OR keep as string but use os.path.join:
 
+
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": 'postgres',
-        "USER": 'postgres.nuseeaynhytggpowhmka',
-        "PASSWORD": 'NSLwMMT6YqF9H2gv',
-        "HOST": 'aws-0-eu-west-1.pooler.supabase.com',
-        "PORT": '6543',
-        "CONN_MAX_AGE": 60,
-    }
+    "default": dj_database_url.parse(
+        os.environ["DATABASE_URL"],
+        conn_max_age=60,
+    )
 }
 
 
