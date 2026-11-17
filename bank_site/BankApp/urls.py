@@ -1,7 +1,15 @@
 from django.urls import path
 from . import views
 
+# Adding app_name prevents namespace conflicts
+app_name = 'BankApp'
+
 urlpatterns = [
+    # Password Reset / Forgot Password
+    path('forgot-password/', views.forgot_password_request, name='forgot_password_request'),
+    path('verify-reset-code/', views.verify_reset_code, name='verify_reset_code'),
+    path('set-new-password/', views.set_new_password, name='set_new_password'),
+
     # Loan management
     path('staff/loans/', views.manage_loans, name='manage_loans'),
     path('staff/loans/approve/<int:loan_id>/', views.approve_loan, name='approve_loan'),
@@ -9,52 +17,70 @@ urlpatterns = [
     path('staff/loans/view/<int:loan_id>/', views.view_loan_details, name='view_loan_details'),
     path('admin_dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('check_staff_status/', views.check_staff_status, name='check_staff_status'),
-    path('forgot-password/', views.forgot_password_request, name='forgot_password_request'),
-    path('verify-reset-code/', views.verify_reset_code, name='verify_reset_code'),
-    path('set-new-password/', views.set_new_password, name='set_new_password'),
+    
+    # Core Pages
     path('home/', views.home, name='home'),
     path('about/', views.about, name='about'),
+    path('service/', views.service, name='service'),
+    path('contact/', views.contact, name='contact'),
+    path('feature/', views.feature, name='feature'),
+    path('team/', views.team, name='team'),
+    path('testimonial/', views.testimonial, name='testimonial'),
+    path('price/', views.price, name='price'),
+    path('quote/', views.quote, name='quote'),
+    path('detail/', views.detail, name='detail'),
+    path('blog/', views.blog, name='blog'),
+
+    # Authentication
+    path('register/', views.register, name='register'),
+    path('login/', views.user_login, name='user_login'),
+    path('LogOut/', views.LogOut, name='LogOut'),
+    
+    # Email Verification (Fixed duplicate name)
+    path('verify-email/<signed_value>/', views.verify_email, name='verify_email'),
+    # If you still use the token-based URL, keep this line, otherwise it can be deleted:
+    path('verify-email-token/<uidb64>/<token>/', views.verify_email, name='verify_email_token'),
+
+    # KYC & Profile
+    path('kyc/', views.kyc, name='kyc'),
     path("kyc/pdf/<int:user_id>/", views.download_kyc_pdf, name="download_kyc_pdf"),
     path("kyc/email/<int:user_id>/", views.send_kyc_email, name="send_kyc_email"),
-    path('verify-email/<signed_value>/', views.verify_email, name='verify_email'),
-    path('blog/', views.blog, name='blog'),
+    path('profile/', views.profile, name='profile'),
+    path('reset_profile/', views.reset_profile, name='reset_profile'),
+    path('Upgrade_Account/', views.Upgrade_Account, name='Upgrade_Account'),
+    
+    # Loans
     path('apply-loan/', views.apply_loan, name='apply_loan'),
     path('loan-review/', views.loan_review, name='loan_review'),
     path('loan-pending/', views.loan_pending, name='loan_pending'),
     path('loan-approved/<int:loan_id>/', views.loan_approved, name='loan_approved'),
     path('submit-loan/', views.submit_loan, name='submit_loan'),
-    path('contact/', views.contact, name='contact'),
-    path('detail/', views.detail, name='detail'),
-    path('feature/', views.feature, name='feature'),
-    path('price/', views.price, name='price'),
-    path('quote/', views.quote, name='quote'),
-    path('verify-email/<uidb64>/<token>/', views.verify_email, name='verify_email'),
-    path('kyc/', views.kyc, name='kyc'),
-    path('service/', views.service, name='service'),
+
+    # Investments
     path('investment/plans/', views.investment_plans, name='investment_plans'),
     path('investment/create/', views.create_investment, name='create_investment'),
     path('investment/dashboard/', views.investment_dashboard, name='investment_dashboard'),
     path('investment/detail/<int:investment_id>/', views.investment_detail, name='investment_detail'),
-    path('team/', views.team, name='team'),
-    path('testimonial/', views.testimonial, name='testimonial'),
-    path('register/', views.register, name='register'),
-    path('login/', views.user_login, name='user_login'),
-    path('transaction/<int:pk>/', views.transaction_detail, name='transaction_detail'),
-    path('LogOut/', views.LogOut, name='LogOut'),
-    path('reset_profile/', views.reset_profile, name='reset_profile'),
+
+    # Dashboard & Transactions
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('transaction/<int:pk>/', views.transaction_detail, name='transaction_detail'),
+    path('transactionPage/', views.transactionPage, name='transaction'),
+    
+    # Deposits & Transfers
     path('crypto/', views.crypto, name='crypto'),
     path('paypal/', views.paypal, name='paypal'),
-    path('transactionPage/', views.transactionPage, name='transaction'),
+    path('bank_transfer/', views.bank_transfer, name='bank_transfer'),
+    path('cashapp/', views.cashapp, name='cashapp'),
+    
+    # Cards
     path('apply-card/', views.application_for_credit_card, name='application_for_credit_card'),
     path('card-list/', views.card_list, name='card_list'),
+
+    # Security / Verification Steps
     path('linking_view/', views.linking_view, name='linking_view'),
-    path('profile/', views.profile, name='profile'),
-    path('Upgrade_Account/', views.Upgrade_Account, name='Upgrade_Account'),
     path('tac/', views.tac, name='tac'),
     path('vat/', views.vat, name='vat'),
     path('imf/', views.imf, name='imf'),
     path('pending/', views.pending, name='pending'),
-    path('bank_transfer/', views.bank_transfer, name='bank_transfer'),
-    path('cashapp/', views.cashapp, name='cashapp'),
 ]
