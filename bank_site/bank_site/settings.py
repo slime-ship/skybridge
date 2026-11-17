@@ -154,15 +154,14 @@ STORAGES = {
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# bank_site/settings.py
 
-# Email Configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'overtimetested@gmail.com'
-EMAIL_HOST_PASSWORD = 'wdru jvdu ftsy dpmk'
-DEFAULT_FROM_EMAIL = 'Axos Bank <overtimetested@gmail.com>'
+# Replace the old Gmail SMTP settings with these:
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
 
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+ANYMAIL = {
+    "RESEND_API_KEY": os.environ.get("RESEND_API_KEY"),
+}
+
+# Default sender email (use Resend's testing domain for now)
+DEFAULT_FROM_EMAIL = "Axos Bank <onboarding@resend.dev>"
