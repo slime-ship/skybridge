@@ -3,6 +3,9 @@ from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from .models import * # Import your UserProfile model
+from django import forms
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 
 from django.contrib.auth import get_user_model
 
@@ -558,3 +561,42 @@ class TACForm(forms.Form):
 
 class VATForm(forms.Form):
     vat = forms.CharField(max_length=6, label='Enter VAT code')
+
+class ForgotPasswordForm(forms.Form):
+    email = forms.EmailField(
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Enter your email'}),
+        label="Email Address"
+    )
+
+class VerifyCodeForm(forms.Form):
+    code = forms.CharField(
+        max_length=6,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter 6-digit code'}),
+        label="Verification Code"
+    )
+
+class SetNewPasswordForm(forms.Form):
+    new_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Enter new password'}),
+        label="New Password"
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Confirm new password'}),
+        label="Confirm New Password"
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get("new_password")
+        confirm_password = cleaned_data.get("confirm_password")
+
+        if password and confirm_password and password != confirm_password:
+            self.add_error('confirm_password', "Passwords do not match.")
+        
+        if password:
+            try:
+                validate_password(password) # Uses Django's built-in password validators
+            except ValidationError as e:
+                self.add_error('new_password', e)
+
+        return cleaned_data
