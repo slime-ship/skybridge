@@ -1,8 +1,6 @@
 from django.urls import path
 from . import views
 
-# Adding app_name prevents namespace conflicts
-app_name = 'BankApp'
 
 urlpatterns = [
     # Password Reset / Forgot Password
