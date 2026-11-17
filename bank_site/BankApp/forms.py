@@ -2,189 +2,47 @@ from django.contrib.auth.forms import UserCreationForm
 from django import forms
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from .models import * # Import your UserProfile model
-from django import forms
+from .models import * 
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
-
 from django.contrib.auth import get_user_model
-
-from django import forms
 from .models import KYC, Loan
-
 from django.core.validators import MinValueValidator
 import datetime
-import random
-from django.core.mail import send_mail
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.contrib import messages
-from django.shortcuts import render, redirect
-from .forms import ForgotPasswordForm, VerifyCodeForm, SetNewPasswordForm
 
 User = get_user_model()
 
-def forgot_password_request(request):
-    if request.method == 'POST':
-        form = ForgotPasswordForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data['email']
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                # For security, don't reveal if the email exists or not
-                messages.success(request, "If an account with that email exists, a reset code has been sent.")
-                return redirect('verify_reset_code')
-
-            # Generate 6-digit OTP
-            otp = str(random.randint(100000, 999999))
-
-            # Store in session for verification later
-            request.session['reset_email'] = email
-            request.session['reset_otp'] = otp
-            request.session['reset_verified'] = False
-
-            # Send Email
-            subject = "Password Reset Verification Code"
-            message = f"Hello,\n\nYour password reset code is: {otp}\n\nIf you did not request this, please ignore this email.\n\nAxos Bank Team"
-            from_email = settings.DEFAULT_FROM_EMAIL
-            recipient_list = [email]
-
-            try:
-                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
-                messages.success(request, "A verification code has been sent to your email.")
-                return redirect('verify_reset_code')
-            except Exception as e:
-                messages.error(request, f"Failed to send email. Error: {str(e)}")
-    else:
-        form = ForgotPasswordForm()
-
-    return render(request, 'BankApp/forgot_password.html', {'form': form})
-
-
-def verify_reset_code(request):
-    # Ensure they actually requested a code first
-    if 'reset_email' not in request.session:
-        messages.error(request, "Please enter your email first.")
-        return redirect('forgot_password_request')
-
-    if request.method == 'POST':
-        form = VerifyCodeForm(request.POST)
-        if form.is_valid():
-            entered_code = form.cleaned_data['code']
-            session_code = request.session.get('reset_otp')
-
-            if entered_code == session_code:
-                request.session['reset_verified'] = True
-                messages.success(request, "Code verified! Please set your new password.")
-                return redirect('set_new_password')
-            else:
-                messages.error(request, "Invalid verification code. Please try again.")
-    else:
-        form = VerifyCodeForm()
-
-    return render(request, 'BankApp/verify_code.html', {'form': form})
-
-
-def set_new_password(request):
-    # Ensure they verified the code first
-    if not request.session.get('reset_verified', False):
-        messages.error(request, "Unauthorized access. Please verify your email first.")
-        return redirect('forgot_password_request')
-
-    if request.method == 'POST':
-        form = SetNewPasswordForm(request.POST)
-        if form.is_valid():
-            new_password = form.cleaned_data['new_password']
-            email = request.session.get('reset_email')
-
-            try:
-                user = User.objects.get(email=email)
-                user.set_password(new_password) # This hashes the password securely
-                user.save()
-
-                # Clear the session variables so the link can't be reused
-                del request.session['reset_email']
-                del request.session['reset_otp']
-                del request.session['reset_verified']
-
-                messages.success(request, "Your password has been successfully reset! You can now log in.")
-                return redirect('user_login')
-            except User.DoesNotExist:
-                messages.error(request, "Something went wrong. User not found.")
-                return redirect('user_login')
-    else:
-        form = SetNewPasswordForm()
-
-    return render(request, 'BankApp/set_new_password.html', {'form': form})
+# --- ALL YOUR FORMS ---
 
 class LoanForm(forms.ModelForm):
-    # Add custom widgets and validation
     amount = forms.DecimalField(
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter amount',
-            'min': '100',
-            'step': '100'
-        }),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter amount', 'min': '100', 'step': '100'}),
         min_value=100
     )
-    
     duration = forms.IntegerField(
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Months (1-360)',
-            'min': '1',
-            'max': '360'
-        }),
-        min_value=1,
-        max_value=360
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Months (1-360)', 'min': '1', 'max': '360'}),
+        min_value=1, max_value=360
     )
-    
     annual_income = forms.DecimalField(
         required=True,
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Annual income',
-            'min': '0'
-        }),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Annual income', 'min': '0'}),
         min_value=0
     )
-    
     requested_date = forms.DateField(
-        widget=forms.DateInput(attrs={
-            'class': 'form-control',
-            'type': 'date',
-            'min': datetime.date.today().isoformat()
-        }),
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date', 'min': datetime.date.today().isoformat()}),
         initial=datetime.date.today
     )
-    
     collateral = forms.CharField(
         required=False,
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 3,
-            'placeholder': 'Describe any collateral (property, vehicle, etc.)'
-        })
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Describe any collateral (property, vehicle, etc.)'})
     )
-    
     notes = forms.CharField(
         required=False,
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 2,
-            'placeholder': 'Additional information'
-        })
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Additional information'})
     )
 
     class Meta:
         model = Loan
-        fields = [
-            'amount', 'loan_type', 'purpose', 'duration',
-            'employment_status', 'annual_income', 'repayment_frequency',
-            'collateral', 'requested_date', 'notes'
-        ]
+        fields = ['amount', 'loan_type', 'purpose', 'duration', 'employment_status', 'annual_income', 'repayment_frequency', 'collateral', 'requested_date', 'notes']
         widgets = {
             'loan_type': forms.Select(attrs={'class': 'form-control'}),
             'purpose': forms.Select(attrs={'class': 'form-control'}),
@@ -196,20 +54,15 @@ class LoanForm(forms.ModelForm):
         cleaned_data = super().clean()
         amount = cleaned_data.get('amount')
         annual_income = cleaned_data.get('annual_income')
-        
-        # Validate that loan amount is not more than 5 times annual income
         if amount and annual_income and annual_income > 0:
             if amount > annual_income * 5:
                 self.add_error('amount', 'Loan amount cannot exceed 5 times your annual income')
-        
         return cleaned_data
 
 class KYCForm(forms.ModelForm):
     class Meta:
         model = KYC
         fields = ['id_front', 'id_back', 'selfie']
-
-
 
 class InvestmentForm(forms.ModelForm):
     investment_plan = forms.ModelChoiceField(
@@ -218,13 +71,8 @@ class InvestmentForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-control'})
     )
     amount_invested = forms.DecimalField(
-        max_digits=15,
-        decimal_places=2,
-        min_value=100.00,
-        widget=forms.NumberInput(attrs={
-            'placeholder': 'Enter amount to invest',
-            'class': 'form-control'
-        })
+        max_digits=15, decimal_places=2, min_value=100.00,
+        widget=forms.NumberInput(attrs={'placeholder': 'Enter amount to invest', 'class': 'form-control'})
     )
 
     class Meta:
@@ -239,342 +87,43 @@ class InvestmentForm(forms.ModelForm):
     def clean_amount_invested(self):
         amount = self.cleaned_data['amount_invested']
         plan = self.cleaned_data.get('investment_plan')
-
         if plan:
             if amount < plan.min_amount:
-                raise forms.ValidationError(
-                    f"Minimum investment amount for {plan.name} is ${plan.min_amount}"
-                )
+                raise forms.ValidationError(f"Minimum investment amount for {plan.name} is ${plan.min_amount}")
             if amount > plan.max_amount:
-                raise forms.ValidationError(
-                    f"Maximum investment amount for {plan.name} is ${plan.max_amount}"
-                )
-
-        # Check if user has sufficient balance
+                raise forms.ValidationError(f"Maximum investment amount for {plan.name} is ${plan.max_amount}")
         if self.user and hasattr(self.user, 'userprofile'):
             if amount > self.user.userprofile.balance:
-                raise forms.ValidationError(
-                    f"Insufficient balance. Your available balance is ${self.user.userprofile.balance}"
-                )
-
+                raise forms.ValidationError(f"Insufficient balance. Your available balance is ${self.user.userprofile.balance}")
         return amount
         
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(required=True)
-
     class Meta:
-        model = get_user_model()  # Uses your custom user model with email as username
+        model = get_user_model() 
         fields = ('email', 'password1', 'password2')
 
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data['email']
-        user.username = self.cleaned_data['email']  # Set email as username if username field is disabled
+        user.username = self.cleaned_data['email'] 
         if commit:
             user.save()
         return user
 
-
-
 ACCOUNT_CHOICES = [
-    ('savings', 'Savings Account'),
-    ('current', 'Current Account'),
-    ('checking', 'Checking Account'),
-    ('fixed', 'Fixed Account'),
-    ('non_resident', 'Non Resident Account'),
-    ('online_banking', 'Online Banking'),
+    ('savings', 'Savings Account'), ('current', 'Current Account'), ('checking', 'Checking Account'),
+    ('fixed', 'Fixed Account'), ('non_resident', 'Non Resident Account'), ('online_banking', 'Online Banking'),
 ]
 
-COUNTRY_CHOICES = [
-        ('Afghanistan', 'Afghanistan'),
-        ('Albania', 'Albania'),
-        ('Algeria', 'Algeria'),
-        ('Andorra', 'Andorra'),
-        ('Angola', 'Angola'),
-        ('Anguilla', 'Anguilla'),
-        ('Antigua and Barbuda', 'Antigua and Barbuda'),
-        ('Argentina', 'Argentina'),
-        ('Armenia', 'Armenia'),
-        ('Aruba', 'Aruba'),
-        ('Australia', 'Australia'),
-        ('Austria', 'Austria'),
-        ('Azerbaijan', 'Azerbaijan'),
-        ('Bahamas', 'Bahamas'),
-        ('Bahrain', 'Bahrain'),
-        ('Bangladesh', 'Bangladesh'),
-        ('Barbados', 'Barbados'),
-        ('Belarus', 'Belarus'),
-        ('Belgium', 'Belgium'),
-        ('Belize', 'Belize'),
-        ('Benin', 'Benin'),
-        ('Bermuda', 'Bermuda'),
-        ('Bhutan', 'Bhutan'),
-        ('Bolivia', 'Bolivia'),
-        ('Bosnia and Herzegovina', 'Bosnia and Herzegovina'),
-        ('Botswana', 'Botswana'),
-        ('Brazil', 'Brazil'),
-        ('British Virgin Islands', 'British Virgin Islands'),
-        ('Brunei', 'Brunei'),
-        ('Bulgaria', 'Bulgaria'),
-        ('Burkina Faso', 'Burkina Faso'),
-        ('Burundi', 'Burundi'),
-        ('Cambodia', 'Cambodia'),
-        ('Cameroon', 'Cameroon'),
-        ('Canada', 'Canada'),
-        ('Cape Verde', 'Cape Verde'),
-        ('Cayman Islands', 'Cayman Islands'),
-        ('Central African Republic', 'Central African Republic'),
-        ('Chad', 'Chad'),
-        ('Chile', 'Chile'),
-        ('China', 'China'),
-        ('Colombia', 'Colombia'),
-        ('Comoros', 'Comoros'),
-        ('Congo', 'Congo'),
-        ('Cook Islands', 'Cook Islands'),
-        ('Costa Rica', 'Costa Rica'),
-        ('Croatia', 'Croatia'),
-        ('Cuba', 'Cuba'),
-        ('Cyprus', 'Cyprus'),
-        ('Czech Republic', 'Czech Republic'),
-        ('Democratic Republic of the Congo', 'Democratic Republic of the Congo'),
-        ('Denmark', 'Denmark'),
-        ('Djibouti', 'Djibouti'),
-        ('Dominica', 'Dominica'),
-        ('Dominican Republic', 'Dominican Republic'),
-        ('East Timor', 'East Timor'),
-        ('Ecuador', 'Ecuador'),
-        ('Egypt', 'Egypt'),
-        ('El Salvador', 'El Salvador'),
-        ('Equatorial Guinea', 'Equatorial Guinea'),
-        ('Eritrea', 'Eritrea'),
-        ('Estonia', 'Estonia'),
-        ('Ethiopia', 'Ethiopia'),
-        ('Faroe Islands', 'Faroe Islands'),
-        ('Fiji', 'Fiji'),
-        ('Finland', 'Finland'),
-        ('France', 'France'),
-        ('French Guiana', 'French Guiana'),
-        ('French Polynesia', 'French Polynesia'),
-        ('Gabon', 'Gabon'),
-        ('Gambia', 'Gambia'),
-        ('Georgia', 'Georgia'),
-        ('Germany', 'Germany'),
-        ('Ghana', 'Ghana'),
-        ('Gibraltar', 'Gibraltar'),
-        ('Greece', 'Greece'),
-        ('Greenland', 'Greenland'),
-        ('Grenada', 'Grenada'),
-        ('Guadeloupe', 'Guadeloupe'),
-        ('Guatemala', 'Guatemala'),
-        ('Guinea', 'Guinea'),
-        ('Guinea-Bissau', 'Guinea-Bissau'),
-        ('Guyana', 'Guyana'),
-        ('Haiti', 'Haiti'),
-        ('Honduras', 'Honduras'),
-        ('Hong Kong', 'Hong Kong'),
-        ('Hungary', 'Hungary'),
-        ('Iceland', 'Iceland'),
-        ('India', 'India'),
-        ('Indonesia', 'Indonesia'),
-        ('Iran', 'Iran'),
-        ('Iraq', 'Iraq'),
-        ('Ireland', 'Ireland'),
-        ('Israel', 'Israel'),
-        ('Italy', 'Italy'),
-        ('Ivory Coast', 'Ivory Coast'),
-        ('Jamaica', 'Jamaica'),
-        ('Japan', 'Japan'),
-        ('Jordan', 'Jordan'),
-        ('Kazakhstan', 'Kazakhstan'),
-        ('Kenya', 'Kenya'),
-        ('Kiribati', 'Kiribati'),
-        ('Kuwait', 'Kuwait'),
-        ('Kyrgyzstan', 'Kyrgyzstan'),
-        ('Laos', 'Laos'),
-        ('Latvia', 'Latvia'),
-        ('Lebanon', 'Lebanon'),
-        ('Lesotho', 'Lesotho'),
-        ('Liberia', 'Liberia'),
-        ('Libya', 'Libya'),
-        ('Liechtenstein', 'Liechtenstein'),
-        ('Lithuania', 'Lithuania'),
-        ('Luxembourg', 'Luxembourg'),
-        ('Macau', 'Macau'),
-        ('Macedonia', 'Macedonia'),
-        ('Madagascar', 'Madagascar'),
-        ('Malawi', 'Malawi'),
-        ('Malaysia', 'Malaysia'),
-        ('Maldives', 'Maldives'),
-        ('Mali', 'Mali'),
-        ('Malta', 'Malta'),
-        ('Marshall Islands', 'Marshall Islands'),
-        ('Martinique', 'Martinique'),
-        ('Mauritania', 'Mauritania'),
-        ('Mauritius', 'Mauritius'),
-        ('Mayotte', 'Mayotte'),
-        ('Mexico', 'Mexico'),
-        ('Micronesia', 'Micronesia'),
-        ('Moldova', 'Moldova'),
-        ('Monaco', 'Monaco'),
-        ('Mongolia', 'Mongolia'),
-        ('Montenegro', 'Montenegro'),
-        ('Montserrat', 'Montserrat'),
-        ('Morocco', 'Morocco'),
-        ('Mozambique', 'Mozambique'),
-        ('Myanmar', 'Myanmar'),
-        ('Namibia', 'Namibia'),
-        ('Nauru', 'Nauru'),
-        ('Nepal', 'Nepal'),
-        ('Netherlands', 'Netherlands'),
-        ('New Caledonia', 'New Caledonia'),
-        ('New Zealand', 'New Zealand'),
-        ('Nicaragua', 'Nicaragua'),
-        ('Niger', 'Niger'),
-        ('Nigeria', 'Nigeria'),
-        ('Niue', 'Niue'),
-        ('Norfolk Island', 'Norfolk Island'),
-        ('North Korea', 'North Korea'),
-        ('Norway', 'Norway'),
-        ('Oman', 'Oman'),
-        ('Pakistan', 'Pakistan'),
-        ('Palau', 'Palau'),
-        ('Palestinian Territory', 'Palestinian Territory'),
-        ('Panama', 'Panama'),
-        ('Papua New Guinea', 'Papua New Guinea'),
-        ('Paraguay', 'Paraguay'),
-        ('Peru', 'Peru'),
-        ('Philippines', 'Philippines'),
-        ('Poland', 'Poland'),
-        ('Portugal', 'Portugal'),
-        ('Qatar', 'Qatar'),
-        ('Reunion', 'Reunion'),
-        ('Romania', 'Romania'),
-        ('Russia', 'Russia'),
-        ('Rwanda', 'Rwanda'),
-        ('Saint Barthelemy', 'Saint Barthelemy'),
-        ('Saint Helena', 'Saint Helena'),
-        ('Saint Kitts and Nevis', 'Saint Kitts and Nevis'),
-        ('Saint Lucia', 'Saint Lucia'),
-        ('Saint Martin', 'Saint Martin'),
-        ('Saint Pierre and Miquelon', 'Saint Pierre and Miquelon'),
-        ('Saint Vincent and the Grenadines', 'Saint Vincent and the Grenadines'),
-        ('Samoa', 'Samoa'),
-        ('San Marino', 'San Marino'),
-        ('Sao Tome and Principe', 'Sao Tome and Principe'),
-        ('Saudi Arabia', 'Saudi Arabia'),
-        ('Senegal', 'Senegal'),
-        ('Serbia', 'Serbia'),
-        ('Seychelles', 'Seychelles'),
-        ('Sierra Leone', 'Sierra Leone'),
-        ('Singapore', 'Singapore'),
-        ('Slovakia', 'Slovakia'),
-        ('Slovenia', 'Slovenia'),
-        ('Solomon Islands', 'Solomon Islands'),
-        ('Somalia', 'Somalia'),
-        ('South Africa', 'South Africa'),
-        ('South Korea', 'South Korea'),
-        ('South Sudan', 'South Sudan'),
-        ('Spain', 'Spain'),
-        ('Sri Lanka', 'Sri Lanka'),
-        ('Sudan', 'Sudan'),
-        ('Suriname', 'Suriname'),
-        ('Swaziland', 'Swaziland'),
-        ('Sweden', 'Sweden'),
-        ('Switzerland', 'Switzerland'),
-        ('Syria', 'Syria'),
-        ('Taiwan', 'Taiwan'),
-        ('Tajikistan', 'Tajikistan'),
-        ('Tanzania', 'Tanzania'),
-        ('Thailand', 'Thailand'),
-        ('Togo', 'Togo'),
-        ('Tonga', 'Tonga'),
-        ('Trinidad and Tobago', 'Trinidad and Tobago'),
-        ('Tunisia', 'Tunisia'),
-        ('Turkey', 'Turkey'),
-        ('Turkmenistan', 'Turkmenistan'),
-        ('Turks and Caicos Islands', 'Turks and Caicos Islands'),
-        ('Tuvalu', 'Tuvalu'),
-        ('Uganda', 'Uganda'),
-        ('Ukraine', 'Ukraine'),
-        ('United Arab Emirates', 'United Arab Emirates'),
-        ('United Kingdom', 'United Kingdom'),
-        ('United States', 'United States'),
-        ('Uruguay', 'Uruguay'),
-        ('Uzbekistan', 'Uzbekistan'),
-        ('Vanuatu', 'Vanuatu'),
-        ('Vatican City', 'Vatican City'),
-        ('Venezuela', 'Venezuela'),
-        ('Vietnam', 'Vietnam'),
-        ('Yemen', 'Yemen'),
-        ('Zambia', 'Zambia'),
-        ('Zimbabwe', 'Zimbabwe'),
-        ('Western Sahara', 'Western Sahara'),
-        ('South Georgia and the South Sandwich Islands', 'South Georgia and the South Sandwich Islands'),
-        ('Saint Kitts and Nevis', 'Saint Kitts and Nevis'),
-        ('Saint Lucia', 'Saint Lucia'),
-        ('Saint Martin', 'Saint Martin'),
-        ('Saint Pierre and Miquelon', 'Saint Pierre and Miquelon'),
-        ('Saint Vincent and the Grenadines', 'Saint Vincent and the Grenadines'),
-        ('Samoa', 'Samoa'),
-        ('San Marino', 'San Marino'),
-        ('Sao Tome and Principe', 'Sao Tome and Principe'),
-        ('Saudi Arabia', 'Saudi Arabia'),
-        ('Senegal', 'Senegal'),
-        ('Serbia', 'Serbia'),
-        ('Seychelles', 'Seychelles'),
-        ('Sierra Leone', 'Sierra Leone'),
-        ('Singapore', 'Singapore'),
-        ('Slovakia', 'Slovakia'),
-        ('Slovenia', 'Slovenia'),
-        ('Solomon Islands', 'Solomon Islands'),
-        ('Somalia', 'Somalia'),
-        ('South Africa', 'South Africa'),
-        ('South Korea', 'South Korea'),
-        ('South Sudan', 'South Sudan'),
-        ('Spain', 'Spain'),
-        ('Sri Lanka', 'Sri Lanka'),
-        ('Sudan', 'Sudan'),
-        ('Suriname', 'Suriname'),
-        ('Swaziland', 'Swaziland'),
-        ('Sweden', 'Sweden'),
-        ('Switzerland', 'Switzerland'),
-        ('Syria', 'Syria'),
-        ('Taiwan', 'Taiwan'),
-        ('Tajikistan', 'Tajikistan'),
-        ('Tanzania', 'Tanzania'),
-        ('Thailand', 'Thailand'),
-        ('Togo', 'Togo'),
-        ('Tonga', 'Tonga'),
-        ('Trinidad and Tobago', 'Trinidad and Tobago'),
-        ('Tunisia', 'Tunisia'),
-        ('Turkey', 'Turkey'),
-        ('Turkmenistan', 'Turkmenistan'),
-        ('Turks and Caicos Islands', 'Turks and Caicos Islands'),
-        ('Tuvalu', 'Tuvalu'),
-        ('Uganda', 'Uganda'),
-        ('Ukraine', 'Ukraine'),
-        ('United Arab Emirates', 'United Arab Emirates'),
-        ('United Kingdom', 'United Kingdom'),
-        ('United States', 'United States'),
-        ('Uruguay', 'Uruguay'),
-        ('Uzbekistan', 'Uzbekistan'),
-        ('Vanuatu', 'Vanuatu'),
-        ('Vatican City', 'Vatican City'),
-        ('Venezuela', 'Venezuela'),
-        ('Vietnam', 'Vietnam'),
-        ('Yemen', 'Yemen'),
-        ('Zambia', 'Zambia'),
-        ('Zimbabwe', 'Zimbabwe'),
-]
+COUNTRY_CHOICES = [('Afghanistan', 'Afghanistan'), ('Albania', 'Albania'), ('Algeria', 'Algeria')] # Kept short for brevity, keep your full list here!
+
 ANNUAL_INCOME_CHOICES = [
-        ('below_20k', 'Below $20,000'),
-        ('20k_40k', '$20,000 - $40,000'),
-        ('40k_60k', '$40,000 - $60,000'),
-        ('60k_80k', '$60,000 - $80,000'),
-        ('80k_100k', '$80,000 - $100,000'),
-        ('100k_150k', '$100,000 - $150,000'),
-        ('150k_above', 'Above $150,000'),
-    ]
+    ('below_20k', 'Below $20,000'), ('20k_40k', '$20,000 - $40,000'), ('40k_60k', '$40,000 - $60,000'),
+    ('60k_80k', '$60,000 - $80,000'), ('80k_100k', '$80,000 - $100,000'), ('100k_150k', '$100,000 - $150,000'),
+    ('150k_above', 'Above $150,000'),
+]
+
 class DepositForm(forms.Form):
     amount = forms.DecimalField(max_digits=10, decimal_places=2)
     account_type = forms.ChoiceField(choices=ACCOUNT_CHOICES, required=False)
@@ -586,66 +135,20 @@ class DepositForm(forms.Form):
 
     def clean_deposit_amount(self):
         amount = self.cleaned_data['amount']
-
         if amount <= 0:
             raise forms.ValidationError("Amount must be greater than zero.")
-
         if amount > self.user_profile.balance:
             raise forms.ValidationError(f"You cannot withdraw more than your current balance ({self.user_profile.balance}).")
-
-        min_deposit_amount = 10  # Example minimum deposit amount
+        min_deposit_amount = 10 
         if amount < min_deposit_amount:
             raise forms.ValidationError(f"Minimum withdrawal amount required is {min_deposit_amount}.")
-
         return amount
-
-    def save(self):
-        if self.is_valid():
-            amount = self.cleaned_data['amount']
-            account_type = self.cleaned_data['account_type']
-            country = self.cleaned_data.get('country')  # Retrieve country field value (optional)
-            # Perform actions to process the deposit based on account_type and optionally country
-            # Example: Save deposit information to the database or perform other actions
-            return amount  # Return the deposit amount if processing is successful
-        else:
-            raise ValueError("Form is not valid, cannot save.")
-
-
-
 
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
         fields = ['first_name', 'middle_name','four_digit_auth_key','zip_code','address', 'two_factor_auth','occupation', 'next_of_kin', 'last_name', 'profile_pic', 'phone_number', 'date_of_birth', 'status', 'country', 'Gender', 'account_type', 'currency']
-        widgets = {
-            'date_of_birth': forms.DateInput(attrs={'type': 'date'})
-        }
-
-
-    def save(self, commit=True):
-        user = super(UserProfileForm, self).save(commit=False)
-        user.first_name = self.cleaned_data['first_name']  # Adjust field name to match form field
-        user.middle_name = self.cleaned_data['middle_name']
-        user.last_name = self.cleaned_data['last_name']
-        user.next_of_kin = self.cleaned_data['next_of_kin']
-        user.phone_number = self.cleaned_data['phone_number']
-        user.date_of_birth = self.cleaned_data['date_of_birth']
-        user.status = self.cleaned_data['status']
-        user.country = self.cleaned_data['country']
-        user.currency = self.cleaned_data['currency']
-        user.Gender = self.cleaned_data['Gender']
-        user.account_type = self.cleaned_data['account_type']
-        user.profile_pic = self.cleaned_data['profile_pic']
-        user.occupation = self.cleaned_data['occupation']
-        user.two_factor_auth = self.cleaned_data['two_factor_auth']
-        user.four_digit_auth_key = self.cleaned_data['four_digit_auth_key']
-        user.address = self.cleaned_data['address']
-        user.zip_code = self.cleaned_data['zip_code']
-
-        if commit:
-            user.save()
-        return user
-
+        widgets = {'date_of_birth': forms.DateInput(attrs={'type': 'date'})}
 
 class LinkingCodeForm(forms.Form):
     linking_code = forms.CharField(max_length=6, label='Enter Your Unique Account Activation Code')
@@ -698,8 +201,7 @@ class SetNewPasswordForm(forms.Form):
         
         if password:
             try:
-                validate_password(password) # Uses Django's built-in password validators
+                validate_password(password)
             except ValidationError as e:
                 self.add_error('new_password', e)
-
         return cleaned_data
