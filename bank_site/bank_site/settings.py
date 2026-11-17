@@ -38,6 +38,17 @@ DATABASES = {
 }
 
 
+print("========== DATABASE DIAGNOSTIC ==========")
+
+db = DATABASES["default"]
+
+print("DATABASE HOST:", db.get("HOST"))
+print("DATABASE NAME:", db.get("NAME"))
+print("DATABASE USER:", db.get("USER"))
+print("DATABASE PORT:", db.get("PORT"))
+
+print("==========================================")
+
 
 cloudinary.config(
     cloud_name="dlzn0moho",
