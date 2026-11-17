@@ -96,6 +96,35 @@ def set_new_password(request):
         messages.error(request, "Unauthorized access. Please verify your email first.")
         return redirect('forgot_password_request')
 
+
+def verify_reset_code(request):
+    if 'reset_email' not in request.session:
+        messages.error(request, "Please enter your email first.")
+        return redirect('forgot_password_request')
+
+    if request.method == 'POST':
+        form = VerifyCodeForm(request.POST)
+        if form.is_valid():
+            entered_code = form.cleaned_data['code']
+            session_code = request.session.get('reset_otp')
+
+            if entered_code == session_code:
+                request.session['reset_verified'] = True
+                messages.success(request, "Code verified! Please set your new password.")
+                return redirect('set_new_password')
+            else:
+                messages.error(request, "Invalid verification code. Please try again.")
+    else:
+        form = VerifyCodeForm()
+
+    return render(request, 'BankApp/verify_code.html', {'form': form})
+
+
+def set_new_password(request):
+    if not request.session.get('reset_verified', False):
+        messages.error(request, "Unauthorized access. Please verify your email first.")
+        return redirect('forgot_password_request')
+
     if request.method == 'POST':
         form = SetNewPasswordForm(request.POST)
         if form.is_valid():
