@@ -1,4 +1,3 @@
-
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -20,20 +19,19 @@ RUN pip install --upgrade pip && \
 
 COPY bank_site/ .
 
-# Placeholder DB URL used ONLY for build-time Django commands (no real DB connection is made).
-# The real DATABASE_URL is injected by Railway at runtime.
+# Placeholder DB URL used ONLY for build-time Django commands
 ARG BUILD_DATABASE_URL=postgres://build:build@localhost:5432/build
 
 # Verify Django installation and settings
 RUN python -c "import django; print('Django version:', django.get_version())"
 
-# Verify staticfiles registration
-RUN DATABASE_URL="$BUILD_DATABASE_URL" python -c "import os; os.environ['DJANGO_SETTINGS_MODULE']='bank_site.settings'; import django; django.setup(); from django.conf import settings; from django.core.management import get_commands; print('Installed apps:', settings.INSTALLED_APPS); print('Collectstatic registered:', 'collectstatic' in get_commands()); assert 'collectstatic' in get_commands(), 'Staticfiles command not registered'"
-
 RUN DATABASE_URL="$BUILD_DATABASE_URL" python manage.py check
 
+# Collect static files during build
 RUN DATABASE_URL="$BUILD_DATABASE_URL" python manage.py collectstatic --no-input
 
-EXPOSE 8010
+# Railway dynamically assigns a PORT. We default to 8080.
+EXPOSE 8080
 
-CMD ["sh", "-c", "gunicorn bank_site.wsgi:application --bind 0.0.0.0:${PORT:-8010} --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile - --log-level info"]
+# Run migrations FIRST, then start Gunicorn
+CMD ["sh", "-c", "python manage.py migrate && gunicorn bank_site.wsgi:application --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 2 --timeout 120 --access-logfile - --error-logfile - --log-level info"]
