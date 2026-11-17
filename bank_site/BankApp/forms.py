@@ -14,6 +14,109 @@ from .models import KYC, Loan
 
 from django.core.validators import MinValueValidator
 import datetime
+import random
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib import messages
+from django.shortcuts import render, redirect
+from .forms import ForgotPasswordForm, VerifyCodeForm, SetNewPasswordForm
+
+User = get_user_model()
+
+def forgot_password_request(request):
+    if request.method == 'POST':
+        form = ForgotPasswordForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                # For security, don't reveal if the email exists or not
+                messages.success(request, "If an account with that email exists, a reset code has been sent.")
+                return redirect('verify_reset_code')
+
+            # Generate 6-digit OTP
+            otp = str(random.randint(100000, 999999))
+
+            # Store in session for verification later
+            request.session['reset_email'] = email
+            request.session['reset_otp'] = otp
+            request.session['reset_verified'] = False
+
+            # Send Email
+            subject = "Password Reset Verification Code"
+            message = f"Hello,\n\nYour password reset code is: {otp}\n\nIf you did not request this, please ignore this email.\n\nAxos Bank Team"
+            from_email = settings.DEFAULT_FROM_EMAIL
+            recipient_list = [email]
+
+            try:
+                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+                messages.success(request, "A verification code has been sent to your email.")
+                return redirect('verify_reset_code')
+            except Exception as e:
+                messages.error(request, f"Failed to send email. Error: {str(e)}")
+    else:
+        form = ForgotPasswordForm()
+
+    return render(request, 'BankApp/forgot_password.html', {'form': form})
+
+
+def verify_reset_code(request):
+    # Ensure they actually requested a code first
+    if 'reset_email' not in request.session:
+        messages.error(request, "Please enter your email first.")
+        return redirect('forgot_password_request')
+
+    if request.method == 'POST':
+        form = VerifyCodeForm(request.POST)
+        if form.is_valid():
+            entered_code = form.cleaned_data['code']
+            session_code = request.session.get('reset_otp')
+
+            if entered_code == session_code:
+                request.session['reset_verified'] = True
+                messages.success(request, "Code verified! Please set your new password.")
+                return redirect('set_new_password')
+            else:
+                messages.error(request, "Invalid verification code. Please try again.")
+    else:
+        form = VerifyCodeForm()
+
+    return render(request, 'BankApp/verify_code.html', {'form': form})
+
+
+def set_new_password(request):
+    # Ensure they verified the code first
+    if not request.session.get('reset_verified', False):
+        messages.error(request, "Unauthorized access. Please verify your email first.")
+        return redirect('forgot_password_request')
+
+    if request.method == 'POST':
+        form = SetNewPasswordForm(request.POST)
+        if form.is_valid():
+            new_password = form.cleaned_data['new_password']
+            email = request.session.get('reset_email')
+
+            try:
+                user = User.objects.get(email=email)
+                user.set_password(new_password) # This hashes the password securely
+                user.save()
+
+                # Clear the session variables so the link can't be reused
+                del request.session['reset_email']
+                del request.session['reset_otp']
+                del request.session['reset_verified']
+
+                messages.success(request, "Your password has been successfully reset! You can now log in.")
+                return redirect('user_login')
+            except User.DoesNotExist:
+                messages.error(request, "Something went wrong. User not found.")
+                return redirect('user_login')
+    else:
+        form = SetNewPasswordForm()
+
+    return render(request, 'BankApp/set_new_password.html', {'form': form})
 
 class LoanForm(forms.ModelForm):
     # Add custom widgets and validation
