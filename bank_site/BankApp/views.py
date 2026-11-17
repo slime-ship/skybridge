@@ -508,7 +508,6 @@ def apply_loan(request):
 
     return render(request, 'BankApp/loans.html', {'form': form, 'user_profile': user_profile, 'page_title': 'Apply for Loan'})
 
-
 @login_required
 def loan_review(request):
     data = request.session.get('loan_data')
@@ -536,10 +535,15 @@ def loan_review(request):
         for field in ['purpose', 'employment_status', 'annual_income', 'repayment_frequency', 'collateral', 'notes']:
             if field in data:
                 if field == 'requested_date':
-                    try: loan_data_for_db[field] = datetime.fromisoformat(data[field]).date()
-                    except: loan_data_for_db[field] = date.today()
-                elif field == 'annual_income': loan_data_for_db[field] = float(data[field])
-                else: loan_data_for_db[field] = data[field]
+                    try: 
+                        # FIXED: Added timezone.datetime
+                        loan_data_for_db[field] = timezone.datetime.fromisoformat(data[field]).date()
+                    except: 
+                        loan_data_for_db[field] = date.today()
+                elif field == 'annual_income': 
+                    loan_data_for_db[field] = float(data[field])
+                else: 
+                    loan_data_for_db[field] = data[field]
         
         loan = Loan.objects.create(**loan_data_for_db)
 
@@ -549,19 +553,32 @@ def loan_review(request):
                 message=f"Your loan application for ${data['amount']} ({data.get('loan_type', 'Personal')}) has been submitted.\n\nApplication ID: {loan.id}",
                 from_email=settings.DEFAULT_FROM_EMAIL, recipient_list=[request.user.email], fail_silently=True,
             )
-        except Exception as e: print(f"Email sending failed: {e}")
+        except Exception as e: 
+            print(f"Email sending failed: {e}")
 
         del request.session['loan_data']
         messages.success(request, f"Loan application submitted successfully! Your application ID is {loan.id}.")
         return redirect('loan_pending')
 
-    context = {**data, 'user': request.user, 'numeric_duration': numeric_duration, 'processing_fee': processing_fee, 'monthly_installment': round(monthly_installment, 2), 'loan_to_income_ratio': round(loan_to_income_ratio, 1)}
+    context = {
+        **data, 
+        'user': request.user, 
+        'numeric_duration': numeric_duration, 
+        'processing_fee': processing_fee, 
+        'monthly_installment': round(monthly_installment, 2), 
+        'loan_to_income_ratio': round(loan_to_income_ratio, 1)
+    }
+    
     if 'requested_date' in data:
-        try: context['requested_date_formatted'] = datetime.fromisoformat(data['requested_date']).strftime("%B %d, %Y")
-        except: context['requested_date_formatted'] = "Not specified"
+        try: 
+            # FIXED: Added timezone.datetime
+            context['requested_date_formatted'] = timezone.datetime.fromisoformat(data['requested_date']).strftime("%B %d, %Y")
+        except: 
+            context['requested_date_formatted'] = "Not specified"
+            
     return render(request, 'BankApp/loan_review.html', context)
 
-
+        
 @login_required
 def loan_pending(request):
     recent_loan = Loan.objects.filter(user=request.user, status='Pending').order_by('-submitted_at').first()
@@ -950,9 +967,10 @@ def dashboard(request):
     if not user_profile.is_linked:
         show_alert = request.session.get('show_alert', True)
         if show_alert:
-            # FIXED: Retrieve last_refresh_str before parsing it
             last_refresh_str = request.session.get('last_refresh', None)
-            last_refresh = datetime.fromisoformat(last_refresh_str) if last_refresh_str else None
+            
+            # FIXED: Added timezone.datetime
+            last_refresh = timezone.datetime.fromisoformat(last_refresh_str) if last_refresh_str else None
             
             if last_refresh is None or (timezone.now() - last_refresh) > timedelta(minutes=5):
                 request.session['last_refresh'] = timezone.now().isoformat()
@@ -980,7 +998,12 @@ def dashboard(request):
                         if user_profile.balance >= deposit_amount:
                             user_profile.balance -= deposit_amount
                             user_profile.save()
-                            Transaction.objects.create(user=user_profile.user, amount=deposit_amount, balance_after=user_profile.balance, description='Debit')
+                            Transaction.objects.create(
+                                user=user_profile.user, 
+                                amount=deposit_amount, 
+                                balance_after=user_profile.balance, 
+                                description='Debit'
+                            )
                             return redirect('imf')
                         else:
                             form.add_error('amount', "Insufficient funds.")
@@ -989,8 +1012,13 @@ def dashboard(request):
     else:
         form = DepositForm(user_profile=user_profile)
 
-    return render(request, 'BankApp/dashboard.html', {'user_profile': user_profile, 'alert_message': alert_message, 'doubled_balance': doubled_balance, 'transactions': transactions, 'form': form})
-
+    return render(request, 'BankApp/dashboard.html', {
+        'user_profile': user_profile, 
+        'alert_message': alert_message, 
+        'doubled_balance': doubled_balance, 
+        'transactions': transactions, 
+        'form': form
+    })
 # ==========================================
 # 7. TRANSACTIONS & PAYMENTS
 # ==========================================
