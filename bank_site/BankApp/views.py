@@ -96,35 +96,6 @@ def set_new_password(request):
         messages.error(request, "Unauthorized access. Please verify your email first.")
         return redirect('forgot_password_request')
 
-
-def verify_reset_code(request):
-    if 'reset_email' not in request.session:
-        messages.error(request, "Please enter your email first.")
-        return redirect('forgot_password_request')
-
-    if request.method == 'POST':
-        form = VerifyCodeForm(request.POST)
-        if form.is_valid():
-            entered_code = form.cleaned_data['code']
-            session_code = request.session.get('reset_otp')
-
-            if entered_code == session_code:
-                request.session['reset_verified'] = True
-                messages.success(request, "Code verified! Please set your new password.")
-                return redirect('set_new_password')
-            else:
-                messages.error(request, "Invalid verification code. Please try again.")
-    else:
-        form = VerifyCodeForm()
-
-    return render(request, 'BankApp/verify_code.html', {'form': form})
-
-
-def set_new_password(request):
-    if not request.session.get('reset_verified', False):
-        messages.error(request, "Unauthorized access. Please verify your email first.")
-        return redirect('forgot_password_request')
-
     if request.method == 'POST':
         form = SetNewPasswordForm(request.POST)
         if form.is_valid():
@@ -166,7 +137,6 @@ def submit_loan(request):
             loan.total_amount_due = total
             loan.save()
 
-            # Assuming these are in utilis.py
             pdf_path = generate_loan_pdf(loan) 
             email_pdf(request.user.email, pdf_path)
 
@@ -302,7 +272,7 @@ def approve_loan(request, loan_id):
             return redirect('manage_loans')
         
         loan.status = 'Approved'
-        loan.reviewed_at = datetime.now() # Fixed: removed extra datetime.
+        loan.reviewed_at = datetime.now()
         loan.save()
         
         amount_decimal = Decimal(str(loan.amount))
@@ -348,7 +318,7 @@ def reject_loan(request, loan_id):
             return redirect('manage_loans')
         
         loan.status = 'Rejected'
-        loan.reviewed_at = datetime.now() # Fixed: removed extra datetime.
+        loan.reviewed_at = datetime.now()
         loan.save()
         
         user_email = loan.user.email if loan.user else None
@@ -425,11 +395,11 @@ def admin_dashboard(request):
     approved_loans = Loan.objects.filter(status='Approved').count()
     rejected_loans = Loan.objects.filter(status='Rejected').count()
     
-    today = date.today() # Fixed: removed extra datetime.
+    today = date.today()
     today_loans = Loan.objects.filter(submitted_at__date=today).count()
-    week_ago = datetime.now() - timedelta(days=7) # Fixed
+    week_ago = datetime.now() - timedelta(days=7)
     this_week_loans = Loan.objects.filter(submitted_at__gte=week_ago).count()
-    month_ago = datetime.now() - timedelta(days=30) # Fixed
+    month_ago = datetime.now() - timedelta(days=30)
     this_month_loans = Loan.objects.filter(submitted_at__gte=month_ago).count()
     
     total_loan_amount = Loan.objects.aggregate(total=Sum('amount'))['total'] or Decimal('0')
@@ -980,8 +950,10 @@ def dashboard(request):
     if not user_profile.is_linked:
         show_alert = request.session.get('show_alert', True)
         if show_alert:
-            last_refresh = timezone.datetime.fromisoformat(last_refresh_str) if last_refresh_str else None
+            # FIXED: Retrieve last_refresh_str before parsing it
+            last_refresh_str = request.session.get('last_refresh', None)
             last_refresh = datetime.fromisoformat(last_refresh_str) if last_refresh_str else None
+            
             if last_refresh is None or (timezone.now() - last_refresh) > timedelta(minutes=5):
                 request.session['last_refresh'] = timezone.now().isoformat()
                 request.session['show_alert'] = True
